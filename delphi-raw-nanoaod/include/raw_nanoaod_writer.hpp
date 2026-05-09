@@ -234,6 +234,11 @@ private:
     std::shared_ptr<std::vector<float>>                   TracRaw_chi2VDHits_;    // Q(LMAIN+18)
     std::shared_ptr<std::vector<std::int8_t>>             TracRaw_charge_;        // sign of Q(LMAIN+8)
     std::shared_ptr<std::vector<std::int32_t>>            TracRaw_lvlock_;        // sk::LVLOCK at the matching VECP entry; 0 = passes IFLSTR=11/IFLCUT=3
+    std::shared_ptr<std::vector<float>>                   TracRaw_vecpPx_;        // sk::VECP(1, vecp_i) — SKELANA-stored P_x for legacy-bit-exact parity
+    std::shared_ptr<std::vector<float>>                   TracRaw_vecpPy_;        // sk::VECP(2, vecp_i)
+    std::shared_ptr<std::vector<float>>                   TracRaw_vecpPz_;        // sk::VECP(3, vecp_i)
+    std::shared_ptr<std::vector<float>>                   TracRaw_vecpE_;         // sk::VECP(4, vecp_i) (mass-code energy)
+    std::shared_ptr<std::vector<float>>                   TracRaw_vecpM_;         // sk::VECP(5, vecp_i) (mass)
 
     // --- Track elements (M7): per-track-per-sub-detector bank entries.
     // Shared layout across PA.TETP(TPC), PA.TEID(ID), PA.TEOD(OD),

@@ -724,6 +724,11 @@ void RawNanoAODWriter::defineTrac(std::unique_ptr<RNTupleModel> &model)
     MakeField(model, "TracRaw_chi2VDHits",    "Q(LMAIN+18): chi2 of VD-associated hits",          TracRaw_chi2VDHits_);
     MakeField(model, "TracRaw_charge",        "sign of Q(LMAIN+8): +1 / 0 / -1",                  TracRaw_charge_);
     MakeField(model, "TracRaw_lvlock",        "SKELANA LVLOCK quality word; 0 = passes IFLSTR=11/IFLCUT=3 selection (matches legacy nanoaod_writer.cpp Part_lock for charged VECP entry)", TracRaw_lvlock_);
+    MakeField(model, "TracRaw_vecpPx",        "SKELANA-stored P_x from VECP(1, i) (cm/GeV-coordinated; equivalent to pT*cos(phi) but in legacy-bit-exact form for parity tests)", TracRaw_vecpPx_);
+    MakeField(model, "TracRaw_vecpPy",        "SKELANA-stored P_y from VECP(2, i)", TracRaw_vecpPy_);
+    MakeField(model, "TracRaw_vecpPz",        "SKELANA-stored P_z from VECP(3, i)", TracRaw_vecpPz_);
+    MakeField(model, "TracRaw_vecpE",         "SKELANA-stored Energy from VECP(4, i) (mass code applied)", TracRaw_vecpE_);
+    MakeField(model, "TracRaw_vecpM",         "SKELANA-stored Mass from VECP(5, i)", TracRaw_vecpM_);
 }
 
 void RawNanoAODWriter::fillTrac()
@@ -746,14 +751,20 @@ void RawNanoAODWriter::fillTrac()
     TracRaw_chi2VDHits_->clear();
     TracRaw_charge_->clear();
     TracRaw_lvlock_->clear();
+    TracRaw_vecpPx_->clear();
+    TracRaw_vecpPy_->clear();
+    TracRaw_vecpPz_->clear();
+    TracRaw_vecpE_->clear();
+    TracRaw_vecpM_->clear();
 
     if (ph::LDTOP <= 0) { *nTracRaw_ = 0; return; }
     // SKELANA's VECP charged section [LVPART..LVPART+NCVECP-1] enumerates the
     // same PA charged tracks we walk below in the same order — both come from
-    // PSCEVT's traversal of the PA chain. We index VECP charged-i by counting
-    // emitted charged tracks (chargedOrdinal); LVLOCK(LVPART+chargedOrdinal-1)
-    // is the SKELANA quality word for that track. INVECP/LVECP are LPA links,
-    // not row indices, so we don't use them for mapping.
+    // PSCEVT's PA chain traversal. We index VECP charged-i by counting emitted
+    // charged tracks (chargedOrdinal); LVLOCK / VECP(1..5, vecp_i) are then the
+    // SKELANA quality word and 4-momentum/mass for that track. INVECP holds
+    // some integer that is NOT the LPA link returned by LPHPA at runtime
+    // (empirically: lookups fail), so we don't use it.
     int chargedOrdinal = 0;
     int paIdx = 0;
     for (int lpv = ph::LQ(ph::LDTOP - 1); lpv > 0; lpv = ph::LQ(lpv))
@@ -774,12 +785,30 @@ void RawNanoAODWriter::fillTrac()
             int ltrac = ph::LPHPA("TRAC", lpa, 0);
 
             TracRaw_paIdx_->push_back(static_cast<std::int16_t>(paIdx));
-            {
-                const int vecp_i = sk::LVPART + chargedOrdinal;
-                ++chargedOrdinal;
-                int lck = -1;
-                if (vecp_i >= 1 && vecp_i <= sk::NVECP) lck = sk::LVLOCK(vecp_i);
-                TracRaw_lvlock_->push_back(lck);
+            // Index VECP at LVPART + chargedOrdinal (1-based VECP index for
+            // the chargedOrdinal-th charged PA track we've emitted).
+            const int vecp_i = sk::LVPART + chargedOrdinal;
+            ++chargedOrdinal;
+            int lck = -1;
+            if (vecp_i >= 1 && vecp_i <= sk::NVECP) lck = sk::LVLOCK(vecp_i);
+            TracRaw_lvlock_->push_back(lck);
+            // SKELANA-stored 4-momentum (VECP[1..4, vecp_i]) for byte-exact
+            // parity with the legacy `t` tree's px/py/pz/Energy. SKELANA
+            // derives these from the perigee with mass-code accounting;
+            // mathematically equivalent to `pT*cos(phi)` etc. but
+            // float-arithmetic-different.
+            if (vecp_i >= 1 && vecp_i <= sk::NVECP) {
+                TracRaw_vecpPx_->push_back(sk::VECP(1, vecp_i));
+                TracRaw_vecpPy_->push_back(sk::VECP(2, vecp_i));
+                TracRaw_vecpPz_->push_back(sk::VECP(3, vecp_i));
+                TracRaw_vecpE_->push_back (sk::VECP(4, vecp_i));
+                TracRaw_vecpM_->push_back (sk::VECP(5, vecp_i));
+            } else {
+                TracRaw_vecpPx_->push_back(0.f);
+                TracRaw_vecpPy_->push_back(0.f);
+                TracRaw_vecpPz_->push_back(0.f);
+                TracRaw_vecpE_->push_back (0.f);
+                TracRaw_vecpM_->push_back (0.f);
             }
 
             // Perigee (Q(LTRAC+2..+6) ↔ QTRAC(4..8)) + weight matrix
