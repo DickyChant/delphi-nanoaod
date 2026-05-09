@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <set>
 #include <unordered_map>
 
 #include "skelana/pscluj.hpp"
@@ -10,6 +11,7 @@
 #include "skelana/pschad.hpp"
 #include "skelana/pscgrc.hpp"
 #include "skelana/psclrc.hpp"
+#include "skelana/pscflg.hpp"
 
 namespace sk = skelana;
 
@@ -93,6 +95,43 @@ void RawNanoAODWriter::user00()
     // IFLxxx default flags and initialises VD via VDIDST. Cheap.
     psini_();
 
+    // Match the IFLxxx flags the legacy delphi-nanoaod writer applies
+    // (delphi-nanoaod.yaml -> nanoAODWriter::setOption -> *pscflg_.iflxxx).
+    // PSBEG -> PSCEVT then drives the same chain of sub-system reconstructions
+    // (VD refit, BSP, BTG, PVT, RV0, ...) that flips LVLOCK on borderline
+    // tracks. Without these flags, our raw nanoaod sees +1 charged track
+    // surviving LVLOCK==0 vs. legacy on ~78/100 events (the analysis_thrust
+    // parity test fails). With these flags, VECP/LVLOCK align bit-exactly.
+    // Values copied verbatim from delphi-nanoaod/config/delphi-nanoaod.yaml.
+    sk::IFLTRA = 1;
+    sk::IFLODR = 1;
+    sk::IFLVEC = 22;
+    sk::IFLSTR = 11;
+    sk::IFLCUT = 3;
+    sk::IFLRVR = 111;
+    sk::IFLSIM = 1;
+    sk::IFLBSP = 2;
+    sk::IFLBTG = 2;
+    sk::IFLPVT = 1;
+    sk::IFLVDR = 1;
+    sk::IFLFCT = 1;
+    sk::IFLRNQ = 0;
+    sk::IFLBHP = 1;
+    sk::IFLUTE = 1;
+    sk::IFLVDH = 1;
+    sk::IFLMUO = 1;
+    sk::IFLECL = 22;
+    sk::IFLELE = 1;
+    sk::IFLEMC = 1;
+    sk::IFLPHO = 1;
+    sk::IFLPHC = 1;
+    sk::IFLSTC = 1;
+    sk::IFLHAC = 1;
+    sk::IFLHAD = 1;
+    sk::IFLRV0 = 1;
+    sk::IFLJET = 0;
+    sk::IFLENR = 0;
+
     std::unique_ptr<RNTupleModel> model = RNTupleModel::Create();
     defineEvent(model);
     defineEmShower(model);
@@ -118,7 +157,24 @@ void RawNanoAODWriter::user00()
 
 int RawNanoAODWriter::user01()
 {
-    return super::user01();
+    if (int need = super::user01(); need < 1) {
+        return need;
+    }
+    // DST-only filter — same as skelana::Analysis::user01. Without it, our
+    // PSBEG-call below runs on RAW/SOR/EOR/etc. records and pollutes the
+    // SKELANA pscvec/pscflg state for the next DST event, knocking VECP /
+    // LVLOCK off bit-for-bit alignment with the legacy `delphi-nanoaod`
+    // writer (which has this filter via skelana::Analysis::checkRecordType).
+    static const std::set<std::string> skipRecType{
+        "RAW", "TAN", "SOR", "COR", "EOR", "SOS", "EOS", "BOF", "CPT", "0072"};
+    const std::string recType = ph::PHRTY();
+    if (skipRecType.find(recType) != skipRecType.end()) return 0;
+    if (recType != "DST") {
+        std::cerr << "RawNanoAODWriter::user01: unknown record type: "
+                  << recType << std::endl;
+        return 0;
+    }
+    return 1;
 }
 
 void RawNanoAODWriter::user02()
