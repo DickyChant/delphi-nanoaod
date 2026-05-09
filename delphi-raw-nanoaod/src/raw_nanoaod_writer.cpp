@@ -12,6 +12,7 @@
 #include "skelana/pscgrc.hpp"
 #include "skelana/psclrc.hpp"
 #include "skelana/pscflg.hpp"
+#include "skelana/functions.hpp"
 
 namespace sk = skelana;
 
@@ -89,6 +90,12 @@ void RawNanoAODWriter::user00()
 {
     super::user00();
 
+    // Suppress floating-point errors during SKELANA work (legacy
+    // skelana::Analysis::user00 line 119 — without this, transient FPEs in
+    // PSHSCT/PSHBANKS cuts can change the IREJ outcome on borderline tracks
+    // by skipping a hit pattern check and leave LVLOCK in a non-legacy state).
+    ph::PHSET("FPE", 0);
+
     // SKELANA once-per-job init. Required for LPHPA('HAID',...) etc. to
     // succeed on PA-extra-module lookups (registers the module-name <->
     // bank-ID table that LPHPA walks internally). Side effect: also sets
@@ -131,6 +138,12 @@ void RawNanoAODWriter::user00()
     sk::IFLRV0 = 1;
     sk::IFLJET = 0;
     sk::IFLENR = 0;
+
+    // If IFLBHP > 0, load the bad-HPC table (1997 run quality). Legacy's
+    // skelana::Analysis::user00 line 153 calls PSBHPC() at this point.
+    // Without it, the IFLBHP check during PSHSCT (track selection) might
+    // resolve to false, marking some tracks as "bad" that legacy keeps.
+    if (sk::IFLBHP > 0) sk::PSBHPC();
 
     std::unique_ptr<RNTupleModel> model = RNTupleModel::Create();
     defineEvent(model);
