@@ -12,6 +12,7 @@
 #include "skelana/pscgrc.hpp"
 #include "skelana/psclrc.hpp"
 #include "skelana/pscflg.hpp"
+#include "skelana/pscutt.hpp"
 #include "skelana/functions.hpp"
 
 namespace sk = skelana;
@@ -138,6 +139,67 @@ void RawNanoAODWriter::user00()
     sk::IFLRV0 = 1;
     sk::IFLJET = 0;
     sk::IFLENR = 0;
+
+    // PSCUTT cuts — copied verbatim from delphi-nanoaod.yaml `skelana_cuts`
+    // and `skelana_intcuts`. PSINI ships defaults that DIFFER from the YAML
+    // (notably TRKRPH3=4, TRKZET3=4 vs YAML 10/10), so PSHSCT's IREJ
+    // decision depends on which set is loaded — that's the source of the
+    // ~166-track LVLOCK delta vs the legacy writer. With these cuts in
+    // place PSCEVT->PSHSCT see the exact same thresholds as legacy.
+    // Old SKELANA selection (index 1):
+    sk::TRKMOM(1) = 0.1f;
+    sk::TRKLEN(1) = 30.f;
+    sk::TRKRPH(1) = 5.f;
+    sk::TRKZET(1) = 10.f;
+    sk::TRCCOS(1) = 0.94f;
+    sk::TRKERR(1) = 1.f;
+    sk::TRNCOS(1) = 0.98f;
+    sk::TRKMAX(1) = 1.E+10f;
+    sk::EHPC  (1) = 1.E-10f;
+    sk::EFEMC (1) = 1.E-10f;
+    sk::EHAC  (1) = 1.E-10f;
+    sk::ESTIC (1) = 1.E-10f;
+    sk::RECCAL(1) = 1.E+10f;
+    sk::VDONLY(1) = 0;
+    sk::IDVDWZ(1) = 0;
+    sk::IHADRJ(1) = 0;
+    sk::ISTOEL(1) = 0;
+    // May 98 tuning for 97 data (index 2):
+    sk::TRKMOM(2) = 0.2f;
+    sk::TRKLEN(2) = 0.f;
+    sk::TRKRPH(2) = 4.f;
+    sk::TRKZET(2) = 4.f;
+    sk::TRCCOS(2) = 1.f;
+    sk::TRKMAX(2) = 1.5f;
+    sk::TRKERR(2) = 1.f;
+    sk::TRNCOS(2) = 1.f;
+    sk::EHPC  (2) = 0.5f;
+    sk::EFEMC (2) = 0.4f;
+    sk::EHAC  (2) = 0.9f;
+    sk::ESTIC (2) = 0.3f;
+    sk::RECCAL(2) = 5.f;
+    sk::VDONLY(2) = 2;
+    sk::IDVDWZ(2) = 1;
+    sk::IHADRJ(2) = 0;
+    sk::ISTOEL(2) = 0;
+    // April 99 tuning for 98 data (index 3) — used because IFLCUT=3 above:
+    sk::TRKMOM(3) = 0.1f;
+    sk::TRKLEN(3) = 30.f;
+    sk::TRKRPH(3) = 10.f;
+    sk::TRKZET(3) = 10.f;
+    sk::TRCCOS(3) = 1.f;
+    sk::TRKMAX(3) = 1.5f;
+    sk::TRKERR(3) = 1.f;
+    sk::TRNCOS(3) = 1.f;
+    sk::EHPC  (3) = 0.3f;
+    sk::EFEMC (3) = 0.4f;
+    sk::EHAC  (3) = 0.f;
+    sk::ESTIC (3) = 0.3f;
+    sk::RECCAL(3) = 5.0f;
+    sk::VDONLY(3) = 1;
+    sk::IDVDWZ(3) = 1;
+    sk::IHADRJ(3) = 2;
+    sk::ISTOEL(3) = 1;
 
     // If IFLBHP > 0, load the bad-HPC table (1997 run quality). Legacy's
     // skelana::Analysis::user00 line 153 calls PSBHPC() at this point.
