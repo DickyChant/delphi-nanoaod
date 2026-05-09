@@ -233,6 +233,7 @@ private:
     std::shared_ptr<std::vector<std::int16_t>>            TracRaw_ndfVD_;         // Q(LMAIN+27)
     std::shared_ptr<std::vector<float>>                   TracRaw_chi2VDHits_;    // Q(LMAIN+18)
     std::shared_ptr<std::vector<std::int8_t>>             TracRaw_charge_;        // sign of Q(LMAIN+8)
+    std::shared_ptr<std::vector<std::int32_t>>            TracRaw_lvlock_;        // sk::LVLOCK at the matching VECP entry; 0 = passes IFLSTR=11/IFLCUT=3
 
     // --- Track elements (M7): per-track-per-sub-detector bank entries.
     // Shared layout across PA.TETP(TPC), PA.TEID(ID), PA.TEOD(OD),

@@ -723,6 +723,7 @@ void RawNanoAODWriter::defineTrac(std::unique_ptr<RNTupleModel> &model)
     MakeField(model, "TracRaw_ndfVD",         "Q(LMAIN+27): d.o.f. of fit with VD",               TracRaw_ndfVD_);
     MakeField(model, "TracRaw_chi2VDHits",    "Q(LMAIN+18): chi2 of VD-associated hits",          TracRaw_chi2VDHits_);
     MakeField(model, "TracRaw_charge",        "sign of Q(LMAIN+8): +1 / 0 / -1",                  TracRaw_charge_);
+    MakeField(model, "TracRaw_lvlock",        "SKELANA LVLOCK quality word; 0 = passes IFLSTR=11/IFLCUT=3 selection (matches legacy nanoaod_writer.cpp Part_lock for charged VECP entry)", TracRaw_lvlock_);
 }
 
 void RawNanoAODWriter::fillTrac()
@@ -744,8 +745,16 @@ void RawNanoAODWriter::fillTrac()
     TracRaw_ndfVD_->clear();
     TracRaw_chi2VDHits_->clear();
     TracRaw_charge_->clear();
+    TracRaw_lvlock_->clear();
 
     if (ph::LDTOP <= 0) { *nTracRaw_ = 0; return; }
+    // SKELANA's VECP charged section [LVPART..LVPART+NCVECP-1] enumerates the
+    // same PA charged tracks we walk below in the same order — both come from
+    // PSCEVT's traversal of the PA chain. We index VECP charged-i by counting
+    // emitted charged tracks (chargedOrdinal); LVLOCK(LVPART+chargedOrdinal-1)
+    // is the SKELANA quality word for that track. INVECP/LVECP are LPA links,
+    // not row indices, so we don't use them for mapping.
+    int chargedOrdinal = 0;
     int paIdx = 0;
     for (int lpv = ph::LQ(ph::LDTOP - 1); lpv > 0; lpv = ph::LQ(lpv))
     {
@@ -765,6 +774,13 @@ void RawNanoAODWriter::fillTrac()
             int ltrac = ph::LPHPA("TRAC", lpa, 0);
 
             TracRaw_paIdx_->push_back(static_cast<std::int16_t>(paIdx));
+            {
+                const int vecp_i = sk::LVPART + chargedOrdinal;
+                ++chargedOrdinal;
+                int lck = -1;
+                if (vecp_i >= 1 && vecp_i <= sk::NVECP) lck = sk::LVLOCK(vecp_i);
+                TracRaw_lvlock_->push_back(lck);
+            }
 
             // Perigee (Q(LTRAC+2..+6) ↔ QTRAC(4..8)) + weight matrix
             // (LTRAC+7..+21 ↔ QTRAC(9..23)). UCOPY moves 20 floats in PSHTRA.
