@@ -123,10 +123,10 @@ void NanoAODWriter::user00()
     {
         defineBeamSpot(model);
     }
-    if (sk::IFLBSP > 0)
-    {
-        fillBeamSpot();
-    }
+    // NOTE: fillBeamSpot() is intentionally NOT called here in user00.
+    // user00 runs once at init, before any event is read, so LDTOP<=0
+    // and the BS bank pointer LQ(LDTOP-25) isn't valid yet. The fill
+    // happens per-event in user02 below.
 
     // writer_ = RNTupleWriter::Recreate(std::move(model), "Events", output_.string());
 
@@ -166,6 +166,21 @@ void NanoAODWriter::user00()
     out_t->Branch("chi2ndfVD", chi2ndfVD, "chi2ndfVD[nParticle]/F");
     out_t->Branch("dpp",       dpp,       "dpp[nParticle]/F");
 
+    // BeamSpot branches in the flat `t` TTree as well, mirroring the
+    // RNTuple `Events` fields. Written here so existing analyses that
+    // read `t.BeamSpot_x` etc. (such as the data nanoaods on EOS) keep
+    // working after the fillBeamSpot fix below.
+    if (sk::IFLBSP > 0)
+    {
+        out_t->Branch("BeamSpot_x",         BeamSpot_x_.get(),         "BeamSpot_x/F");
+        out_t->Branch("BeamSpot_y",         BeamSpot_y_.get(),         "BeamSpot_y/F");
+        out_t->Branch("BeamSpot_z",         BeamSpot_z_.get(),         "BeamSpot_z/F");
+        out_t->Branch("BeamSpot_sigmaX",    BeamSpot_sigmaX_.get(),    "BeamSpot_sigmaX/F");
+        out_t->Branch("BeamSpot_sigmaY",    BeamSpot_sigmaY_.get(),    "BeamSpot_sigmaY/F");
+        out_t->Branch("BeamSpot_sigmaZ",    BeamSpot_sigmaZ_.get(),    "BeamSpot_sigmaZ/F");
+        out_t->Branch("BeamSpot_errorFlag", BeamSpot_errorFlag_.get(), "BeamSpot_errorFlag/I");
+    }
+
     pdgDatabase = TDatabasePDG::Instance();
 };
 
@@ -179,6 +194,10 @@ void NanoAODWriter::user02()
     super::user02();
 
     fillEvent();
+    if (sk::IFLBSP > 0)
+    {
+        fillBeamSpot();
+    }
     fillPart();
     fillPhoton();
     fillVtx();
@@ -1401,13 +1420,30 @@ void NanoAODWriter::defineBeamSpot(std::unique_ptr<RNTupleModel> &model)
 
 void NanoAODWriter::fillBeamSpot()
 {
-    *BeamSpot_errorFlag_ = sk::IERRBS;
-    *BeamSpot_x_ = sk::XYZBS(1);
-    *BeamSpot_y_ = sk::XYZBS(2);
-    *BeamSpot_z_ = sk::XYZBS(3);
-    *BeamSpot_sigmaX_ = sk::DXYZBS(1);
-    *BeamSpot_sigmaY_ = sk::DXYZBS(2);
-    *BeamSpot_sigmaZ_ = sk::DXYZBS(3);
+    // Read the BS bank at LQ(LDTOP-25) directly. This is what SKELANA's
+    // PSBHPC does internally (skelana.car L1606) when IFLBSP=1; reading
+    // here without depending on PSBHPC timing also handles writers that
+    // (correctly) call this from user02. Default to 0 + errorFlag=-1 if
+    // the bank is missing — matches delphi-raw-nanoaod's fillBeamSpot.
+    *BeamSpot_x_ = 0.f;
+    *BeamSpot_y_ = 0.f;
+    *BeamSpot_z_ = 0.f;
+    *BeamSpot_sigmaX_ = 0.f;
+    *BeamSpot_sigmaY_ = 0.f;
+    *BeamSpot_sigmaZ_ = 0.f;
+    *BeamSpot_errorFlag_ = -1;
+
+    if (phdst::LDTOP <= 0) return;
+    int lqspot = phdst::LQ(phdst::LDTOP - 25);
+    if (lqspot <= 0) return;
+
+    *BeamSpot_x_      = phdst::Q(lqspot + 1);
+    *BeamSpot_y_      = phdst::Q(lqspot + 2);
+    *BeamSpot_z_      = phdst::Q(lqspot + 3);
+    *BeamSpot_sigmaX_ = phdst::Q(lqspot + 4);
+    *BeamSpot_sigmaY_ = phdst::Q(lqspot + 5);
+    *BeamSpot_sigmaZ_ = phdst::Q(lqspot + 6);
+    *BeamSpot_errorFlag_ = 0;
 }
 
 void NanoAODWriter::fillPartLoop(particleData& pData,
