@@ -889,14 +889,11 @@ void RawNanoAODWriter::fillTrac()
     TracRaw_vecpM_->clear();
 
     if (ph::LDTOP <= 0) { *nTracRaw_ = 0; return; }
-    // SKELANA's VECP charged section [LVPART..LVPART+NCVECP-1] enumerates the
-    // same PA charged tracks we walk below in the same order — both come from
-    // PSCEVT's PA chain traversal. We index VECP charged-i by counting emitted
-    // charged tracks (chargedOrdinal); LVLOCK / VECP(1..5, vecp_i) are then the
-    // SKELANA quality word and 4-momentum/mass for that track. INVECP holds
-    // some integer that is NOT the LPA link returned by LPHPA at runtime
-    // (empirically: lookups fail), so we don't use it.
-    int chargedOrdinal = 0;
+    // Match each PA charged track to a SKELANA VECP entry via the actual
+    // LPA link in PUCLLL (LVECP(i) == lpa). Ordinal-based mapping is
+    // unstable when PSHORTSEL/PSHSCTRECOVER reclassifies tracks during
+    // PSCEVT — that was the cause of the residual ±1-track LVLOCK delta
+    // on a few % of events vs the legacy `delphi-nanoaod` writer.
     int paIdx = 0;
     for (int lpv = ph::LQ(ph::LDTOP - 1); lpv > 0; lpv = ph::LQ(lpv))
     {
@@ -916,19 +913,27 @@ void RawNanoAODWriter::fillTrac()
             int ltrac = ph::LPHPA("TRAC", lpa, 0);
 
             TracRaw_paIdx_->push_back(static_cast<std::int16_t>(paIdx));
-            // Index VECP at LVPART + chargedOrdinal (1-based VECP index for
-            // the chargedOrdinal-th charged PA track we've emitted).
-            const int vecp_i = sk::LVPART + chargedOrdinal;
-            ++chargedOrdinal;
-            int lck = -1;
-            if (vecp_i >= 1 && vecp_i <= sk::NVECP) lck = sk::LVLOCK(vecp_i);
+            // Look up the VECP entry for this PA track via its LPA link.
+            // We require sk::VECP(7, i) != 0 (charged) so reclassified
+            // charged-recovered-as-neutral entries don't claim our slot.
+            int vecp_i = 0;
+            for (int i = sk::LVPART; i <= sk::NVECP; ++i) {
+                if (sk::LVECP(i) == lpa
+                    && std::lround(sk::VECP(7, i)) != 0) {
+                    vecp_i = i;
+                    break;
+                }
+            }
+            // Default to LVLOCK=1 (= rejected) when no VECP match: the
+            // converter's --require-lvlock-zero filter then drops the row.
+            int lck = 1;
+            if (vecp_i >= 1) lck = sk::LVLOCK(vecp_i);
             TracRaw_lvlock_->push_back(lck);
             // SKELANA-stored 4-momentum (VECP[1..4, vecp_i]) for byte-exact
-            // parity with the legacy `t` tree's px/py/pz/Energy. SKELANA
-            // derives these from the perigee with mass-code accounting;
-            // mathematically equivalent to `pT*cos(phi)` etc. but
-            // float-arithmetic-different.
-            if (vecp_i >= 1 && vecp_i <= sk::NVECP) {
+            // parity with the legacy `t` tree's px/py/pz/Energy. Falls back
+            // to zeros for unmatched tracks (which the LVLOCK filter drops
+            // anyway).
+            if (vecp_i >= 1) {
                 TracRaw_vecpPx_->push_back(sk::VECP(1, vecp_i));
                 TracRaw_vecpPy_->push_back(sk::VECP(2, vecp_i));
                 TracRaw_vecpPz_->push_back(sk::VECP(3, vecp_i));

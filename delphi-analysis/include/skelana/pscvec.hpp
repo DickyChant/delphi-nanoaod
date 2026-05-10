@@ -36,11 +36,25 @@ namespace skelana
         inline const int LVJET = 260;
         inline const int LVTHRU = 250;
         inline const int LVSPHE = 255;
-    
+        inline const int MXVECB = 40;  // matches vecsub72.car PUCLLL definition
+
         extern "C" struct
         {
             float vecp[3 * MTRACK][10];
         } pucppp_;
+
+        // PUCLLL common (vecsub72.car L726): per-VECP-entry LPA bank links.
+        // LVECP(i) is the LPA link of the track at VECP entry i — the same
+        // pointer LPHPA('MAIN', lpa, 0) returns when walking the PA chain.
+        // We need this for exact PA -> VECP matching (chargedOrdinal mapping
+        // breaks when PSHCTRECOVER reclassifies tracks during PSCEVT).
+        extern "C" struct
+        {
+            int lvecp [3 * MTRACK];
+            int lvecb0[3 * MTRACK];
+            int lvecbn[3 * MTRACK][MXVECB];
+            int nvecbn[3 * MTRACK][MXVECB];
+        } puclll_;
 
         extern "C" struct
         {
@@ -52,9 +66,10 @@ namespace skelana
             int lvlock[3 * MTRACK];
             int invecp[3 * MTRACK];
         } pscvec_;
-    
+
         inline float &VECP(int i, int j) { return pucppp_.vecp[j - 1][i - 1]; }
         inline int &IVECP(int i, int j) { return *reinterpret_cast<int *>(&pucppp_.vecp[j - 1][i - 1]); }
+        inline int &LVECP(int i) { return puclll_.lvecp[i - 1]; }
 
         inline int &NVECP = pscvec_.nvecp;
         inline int &NCVECP = pscvec_.ncvecp;
@@ -63,7 +78,7 @@ namespace skelana
         inline int &NJET = pscvec_.njet;
         inline int &LVLOCK(int i) { return pscvec_.lvlock[i - 1]; }
         inline int &INVEC(int i) { return pscvec_.invecp[i - 1]; }
-    
+
 } // namespace skelana
 
 #endif // SKELANA_PSCVEC_HPP
