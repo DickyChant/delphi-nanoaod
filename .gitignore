@@ -11,3 +11,9 @@ dict*
 build/
 build_raw/
 build_container/
+
+# Python bytecode
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
