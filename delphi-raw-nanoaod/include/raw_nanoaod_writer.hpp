@@ -238,6 +238,16 @@ private:
     // garbage past element ~25 in some events; uproot reads the same file
     // correctly). LVLOCK fits easily in 8 bits (values are 0/1/few-bit-flag).
     std::shared_ptr<std::vector<std::int8_t>>             TracRaw_lvlock_;        // sk::LVLOCK at the matching VECP entry; 0 = passes IFLSTR=11/IFLCUT=3
+    // BS- and PV-corrected impact parameters at sk::QTRAC(38..40, vecp_i).
+    // Filled by SKELANA's PSCBHP (BS fit) + PV fit at analysis time and
+    // stored back into the QTRAC bank's extension slots. Same values
+    // legacy nanoaod_writer.cpp surfaces under Trac_impParToVertex* /
+    // Trac_impParToBeamSpot*. Reading via the sk::QTRAC accessor (not
+    // ph::Q(LTRAC+offset)) because the extension slots live in a separate
+    // memory region the PHDST raw bank pointer doesn't reach.
+    std::shared_ptr<std::vector<float>>                   TracRaw_impParToVertexRPhi_;     // sk::QTRAC(38, vecp_i)
+    std::shared_ptr<std::vector<float>>                   TracRaw_impParToVertexZ_;        // sk::QTRAC(39, vecp_i)
+    std::shared_ptr<std::vector<float>>                   TracRaw_impParToBeamSpotRPhi_;   // sk::QTRAC(40, vecp_i)
     std::shared_ptr<std::vector<float>>                   TracRaw_vecpPx_;        // sk::VECP(1, vecp_i) — SKELANA-stored P_x for legacy-bit-exact parity
     std::shared_ptr<std::vector<float>>                   TracRaw_vecpPy_;        // sk::VECP(2, vecp_i)
     std::shared_ptr<std::vector<float>>                   TracRaw_vecpPz_;        // sk::VECP(3, vecp_i)

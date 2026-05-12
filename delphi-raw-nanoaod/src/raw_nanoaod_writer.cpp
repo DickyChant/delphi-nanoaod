@@ -13,6 +13,7 @@
 #include "skelana/psclrc.hpp"
 #include "skelana/pscflg.hpp"
 #include "skelana/pscutt.hpp"
+#include "skelana/psctra.hpp"      // sk::QTRAC accessor for BS/PV-corrected impact pars
 #include "skelana/functions.hpp"
 
 namespace sk = skelana;
@@ -854,6 +855,9 @@ void RawNanoAODWriter::defineTrac(std::unique_ptr<RNTupleModel> &model)
     MakeField(model, "TracRaw_ndfVD",         "Q(LMAIN+27): d.o.f. of fit with VD",               TracRaw_ndfVD_);
     MakeField(model, "TracRaw_chi2VDHits",    "Q(LMAIN+18): chi2 of VD-associated hits",          TracRaw_chi2VDHits_);
     MakeField(model, "TracRaw_charge",        "sign of Q(LMAIN+8): +1 / 0 / -1",                  TracRaw_charge_);
+    MakeField(model, "TracRaw_impParToVertexRPhi",   "sk::QTRAC(38, vecp_i): impact parameter to primary vertex, R-phi (cm). Matches legacy Trac_impParToVertexRPhi.",   TracRaw_impParToVertexRPhi_);
+    MakeField(model, "TracRaw_impParToVertexZ",      "sk::QTRAC(39, vecp_i): impact parameter to primary vertex, Z (cm). Matches legacy Trac_impParToVertexZ.",          TracRaw_impParToVertexZ_);
+    MakeField(model, "TracRaw_impParToBeamSpotRPhi", "sk::QTRAC(40, vecp_i): impact parameter to beam spot, R-phi (cm). Matches legacy Trac_impParToBeamSpotRPhi — this is the d0 Jingyu's apply_track_selection_delphi cuts on.", TracRaw_impParToBeamSpotRPhi_);
     MakeField(model, "TracRaw_lvlock",        "SKELANA LVLOCK quality word; 0 = passes IFLSTR=11/IFLCUT=3 selection (matches legacy nanoaod_writer.cpp Part_lock for charged VECP entry)", TracRaw_lvlock_);
     MakeField(model, "TracRaw_vecpPx",        "SKELANA-stored P_x from VECP(1, i) (cm/GeV-coordinated; equivalent to pT*cos(phi) but in legacy-bit-exact form for parity tests)", TracRaw_vecpPx_);
     MakeField(model, "TracRaw_vecpPy",        "SKELANA-stored P_y from VECP(2, i)", TracRaw_vecpPy_);
@@ -881,6 +885,9 @@ void RawNanoAODWriter::fillTrac()
     TracRaw_ndfVD_->clear();
     TracRaw_chi2VDHits_->clear();
     TracRaw_charge_->clear();
+    TracRaw_impParToVertexRPhi_->clear();
+    TracRaw_impParToVertexZ_->clear();
+    TracRaw_impParToBeamSpotRPhi_->clear();
     TracRaw_lvlock_->clear();
     TracRaw_vecpPx_->clear();
     TracRaw_vecpPy_->clear();
@@ -942,12 +949,22 @@ void RawNanoAODWriter::fillTrac()
                 TracRaw_vecpPz_->push_back(sk::VECP(3, vecp_i));
                 TracRaw_vecpE_->push_back (sk::VECP(4, vecp_i));
                 TracRaw_vecpM_->push_back (sk::VECP(5, vecp_i));
+                // QTRAC(38..40, vecp_i): BS- and PV-corrected impact pars
+                // populated by PSCBHP / PV-fit. sk::QTRAC accessor routes
+                // to the right memory (the extension slots aren't visible
+                // through ph::Q(LTRAC+offset) since they live elsewhere).
+                TracRaw_impParToVertexRPhi_  ->push_back(sk::QTRAC(38, vecp_i));
+                TracRaw_impParToVertexZ_     ->push_back(sk::QTRAC(39, vecp_i));
+                TracRaw_impParToBeamSpotRPhi_->push_back(sk::QTRAC(40, vecp_i));
             } else {
                 TracRaw_vecpPx_->push_back(0.f);
                 TracRaw_vecpPy_->push_back(0.f);
                 TracRaw_vecpPz_->push_back(0.f);
                 TracRaw_vecpE_->push_back (0.f);
                 TracRaw_vecpM_->push_back (0.f);
+                TracRaw_impParToVertexRPhi_  ->push_back(0.f);
+                TracRaw_impParToVertexZ_     ->push_back(0.f);
+                TracRaw_impParToBeamSpotRPhi_->push_back(0.f);
             }
 
             // Perigee (Q(LTRAC+2..+6) ↔ QTRAC(4..8)) + weight matrix
