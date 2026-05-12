@@ -928,7 +928,10 @@ void RawNanoAODWriter::fillTrac()
             // converter's --require-lvlock-zero filter then drops the row.
             int lck = 1;
             if (vecp_i >= 1) lck = sk::LVLOCK(vecp_i);
-            TracRaw_lvlock_->push_back(lck);
+            // Saturating cast to int8: LVLOCK is a small bitfield; if the
+            // SKELANA value is ever larger than 127 just clamp to that.
+            TracRaw_lvlock_->push_back(static_cast<std::int8_t>(
+                std::min(lck, 127)));
             // SKELANA-stored 4-momentum (VECP[1..4, vecp_i]) for byte-exact
             // parity with the legacy `t` tree's px/py/pz/Energy. Falls back
             // to zeros for unmatched tracks (which the LVLOCK filter drops

@@ -233,7 +233,11 @@ private:
     std::shared_ptr<std::vector<std::int16_t>>            TracRaw_ndfVD_;         // Q(LMAIN+27)
     std::shared_ptr<std::vector<float>>                   TracRaw_chi2VDHits_;    // Q(LMAIN+18)
     std::shared_ptr<std::vector<std::int8_t>>             TracRaw_charge_;        // sign of Q(LMAIN+8)
-    std::shared_ptr<std::vector<std::int32_t>>            TracRaw_lvlock_;        // sk::LVLOCK at the matching VECP entry; 0 = passes IFLSTR=11/IFLCUT=3
+    // int8 (not int32) avoids a ROOT 6.38 RNTuple read-decoding bug specific
+    // to small-range vector<int32_t> fields (the C++ reader returns INT32_MIN
+    // garbage past element ~25 in some events; uproot reads the same file
+    // correctly). LVLOCK fits easily in 8 bits (values are 0/1/few-bit-flag).
+    std::shared_ptr<std::vector<std::int8_t>>             TracRaw_lvlock_;        // sk::LVLOCK at the matching VECP entry; 0 = passes IFLSTR=11/IFLCUT=3
     std::shared_ptr<std::vector<float>>                   TracRaw_vecpPx_;        // sk::VECP(1, vecp_i) — SKELANA-stored P_x for legacy-bit-exact parity
     std::shared_ptr<std::vector<float>>                   TracRaw_vecpPy_;        // sk::VECP(2, vecp_i)
     std::shared_ptr<std::vector<float>>                   TracRaw_vecpPz_;        // sk::VECP(3, vecp_i)
