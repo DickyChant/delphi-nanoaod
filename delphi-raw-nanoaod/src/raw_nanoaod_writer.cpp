@@ -935,10 +935,12 @@ void RawNanoAODWriter::fillTrac()
             // converter's --require-lvlock-zero filter then drops the row.
             int lck = 1;
             if (vecp_i >= 1) lck = sk::LVLOCK(vecp_i);
-            // Saturating cast to int8: LVLOCK is a small bitfield; if the
-            // SKELANA value is ever larger than 127 just clamp to that.
-            TracRaw_lvlock_->push_back(static_cast<std::int8_t>(
-                std::min(lck, 127)));
+            // Store full int32 — high bit (0x80000000) carries the REMCLU
+            // overlap flag set by PSHREMCLU in skelana.car. Downstream
+            // analyses must cut on `LVLOCK == 0` (all bits zero); cutting
+            // on `LVLOCK <= 0` or treating only bit 1 would silently keep
+            // REMCLU-overlapping Parts.
+            TracRaw_lvlock_->push_back(static_cast<std::int32_t>(lck));
             // SKELANA-stored 4-momentum (VECP[1..4, vecp_i]) for byte-exact
             // parity with the legacy `t` tree's px/py/pz/Energy. Falls back
             // to zeros for unmatched tracks (which the LVLOCK filter drops

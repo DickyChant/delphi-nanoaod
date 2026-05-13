@@ -233,11 +233,18 @@ private:
     std::shared_ptr<std::vector<std::int16_t>>            TracRaw_ndfVD_;         // Q(LMAIN+27)
     std::shared_ptr<std::vector<float>>                   TracRaw_chi2VDHits_;    // Q(LMAIN+18)
     std::shared_ptr<std::vector<std::int8_t>>             TracRaw_charge_;        // sign of Q(LMAIN+8)
-    // int8 (not int32) avoids a ROOT 6.38 RNTuple read-decoding bug specific
-    // to small-range vector<int32_t> fields (the C++ reader returns INT32_MIN
-    // garbage past element ~25 in some events; uproot reads the same file
-    // correctly). LVLOCK fits easily in 8 bits (values are 0/1/few-bit-flag).
-    std::shared_ptr<std::vector<std::int8_t>>             TracRaw_lvlock_;        // sk::LVLOCK at the matching VECP entry; 0 = passes IFLSTR=11/IFLCUT=3
+    // int32 to preserve the FULL SKELANA LVLOCK bitmask. The high bit
+    // (bit 32, hex 0x80000000) is set by PSHREMCLU when a Particle is
+    // part of a REMCLU calorimeter cluster whose energy has already been
+    // merged into a charged-track PFO — keeping these Parts in event
+    // sums causes calorimeter-energy double counting in thrust, EEC,
+    // missing-pt, etc. Truncating to int8 silently drops this bit, so
+    // the previous int8 schema (commit 83595b8) was a regression. The
+    // legacy `Part_lock` branch in nanoaod_writer.cpp is int32 for the
+    // same reason. Convention: an analysis selects a particle iff
+    // LVLOCK == 0 exactly (all 32 bits zero) — see skelana.car lines
+    // 909, 969 in the SKELANA Fortran source.
+    std::shared_ptr<std::vector<std::int32_t>>            TracRaw_lvlock_;        // sk::LVLOCK at the matching VECP entry; 0 = passes IFLSTR=11/IFLCUT=3, bit 32 = REMCLU overlap
     // BS- and PV-corrected impact parameters at sk::QTRAC(38..40, vecp_i).
     // Filled by SKELANA's PSCBHP (BS fit) + PV fit at analysis time and
     // stored back into the QTRAC bank's extension slots. Same values
